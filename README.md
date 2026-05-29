@@ -16,6 +16,7 @@ The protocol uses the following structure:
 
 # Datagram Structure
 
+data:
 ```text
 +------+-----+---------+------+
 | TYPE | DATA_SIZE |   DATA   |
@@ -23,7 +24,7 @@ The protocol uses the following structure:
 | 1 B  |    4 B    | Variable |
 +------+-----+---------+------+
 ```
-
+header:
 ```cabezera
 +------+-----+---------+-------------+------------+
 | SEQ | NODE_ID | CHUNK_TOTAL | CHUNK_NUM | HASH |
