@@ -1,0 +1,28 @@
+pip install pybind11
+python setup.py build_ext --inplace
+python test.py
+python test.calculator.py
+python test_calculator.py 
+python setup.py build_ext --inplace
+python test_calculator.py
+python test.py 
+touch s.cpp
+python setup.py build_ext --inplace
+python test.py
+python setup.py build_ext --inplace
+ python test.py
+python setup.py build_ext --inplace
+python test.py
+python setup.py build_ext --inplace
+python test.py 
+python setup.py build_ext --inplace
+python test.py 
+python setup.py build_ext --inplace
+python test.py
+ python setup.py build_ext --inplace
+python test.py
+python test.py 
+python test.py
+python test.py 
+./python test.py 
+python test.py 
