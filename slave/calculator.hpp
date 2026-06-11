@@ -38,6 +38,11 @@ namespace calculator {
         ~UDPClient();
 
         void send_data(std::vector<std::string> data, int dest);
+        std::string receive_message();
+        void parseProtocol(const std::string &data);
+        void fread();
+        
+        
     };
     
     std::vector<std::string> split(std::string data);

@@ -46,7 +46,7 @@ class MulticlassClassifier(nn.Module):
 
         
      
-# Add two numbers    EJEMPLO DEL PROFE
+ # Add two numbers    #EJEMPLO DEL PROFE
 #result = calculator.add(5.0, 3.0)
 #print(result)  # Output: 8.0
 
@@ -68,20 +68,21 @@ class MulticlassClassifier(nn.Module):
 
 #-----------------------------------------------------INICIO-------------------------------------------------------------------------
 
-#PORT = 9000
+PORT = 9000
 
-#client = calculator.UDPClient("192.168.107.107", 9000)
+#-----------------------------------------------------Crea estructura cliente con socket
+client = calculator.UDPClient("192.168.107.107", 9000)
 
-#fulldata = calculator.buildProtocol('L',"pipipi")
-#frag = calculator.split(fulldata)
-#client.send_data(frag,1)
+#----------------------------------------------------- envia un mensaje de login
+protocol = client.buildProtocol('L', "")
+storage = calculator.split(protocol)
+client.send_data(storage, 0)
 
-#print(fulldata)
-        
-    
-    
-    
-    
+#-----------------------------------------------------recibe las 3 matrices y el conjunto de datos en total 4 cosas    
+for i in range(0,4):
+    client.fread();
+
+
 # Generate synthetic heteroscedastic multiclass data
 torch.manual_seed(42)
 num_samples = 1000
@@ -127,6 +128,28 @@ test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
 
 # Model setup
 model = MulticlassClassifier(input_dim=input_dim, num_classes=num_classes)
+
+
+
+#-----------------------------------------------------CARGA DE LOS PESOS que se mandaron antes
+pesos1 = np.loadtxt("pesos_fc1.txt")
+pesos2 = np.loadtxt("pesos_fc2.txt")
+pesos3 = np.loadtxt("pesos_fc3.txt")
+
+model.fc1.weight.data.copy_(
+    torch.tensor(pesos1, dtype=torch.float32)
+)
+
+model.fc2.weight.data.copy_(
+    torch.tensor(pesos2, dtype=torch.float32)
+)
+
+model.fc3.weight.data.copy_(
+    torch.tensor(pesos3, dtype=torch.float32)
+)
+
+
+
 
 criterion = nn.CrossEntropyLoss()
 optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
@@ -180,10 +203,25 @@ for epoch in range(num_epochs):
     print(f'Accuracy : {num_correct/total}')
 
 
-#GUARDAR PESOS 1
-weights = model.fc1.weight.detach().cpu().numpy()
-np.savetxt("pesos_fc1.txt", weights)
-    
+#-----------------------------------------------------GUARDAR PESOS en txts despues de hacer el entrenamiento
+weight1 = np.matrix(model.fc1.weight.detach().cpu().numpy())
+np.savetxt("pesos_fc1.txt", weight1)
+weight2 = np.matrix(model.fc2.weight.detach().cpu().numpy())
+np.savetxt("pesos_fc2.txt", weight2)
+weight3 = np.matrix(model.fc3.weight.detach().cpu().numpy())
+np.savetxt("pesos_fc3.txt", weight3)
+
+
+#-----------------------------------------------------Manda los pesos a master
+for i in range(1, 4):
+    with open(f"pesos_fc{i}.txt", "r") as f:
+        contenido = f.read()
+
+    protocol = client.buildProtocol('M', contenido)
+    storage = calculator.split(protocol)
+    client.send_data(storage, 0)
+
+
 
 # Plot training loss over epochs
 plt.figure(figsize=(8, 4))

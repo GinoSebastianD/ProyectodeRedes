@@ -16,6 +16,8 @@ using namespace std;
 constexpr int PORT = 9000;
 int payloadsize = 490;
 
+int Mactual=1;
+
 namespace calculator {
     double add(double a, double b) {
         return a + b;
@@ -71,13 +73,24 @@ namespace calculator {
             ip.c_str(),
             &serverAddr.sin_addr
         );
+      
+        sockaddr_in clientAddr{};
+
+        clientAddr.sin_family = AF_INET;
+        clientAddr.sin_addr.s_addr = INADDR_ANY;
+        clientAddr.sin_port = htons(port);
+
+        if(bind( sockfd, (sockaddr*)&clientAddr, sizeof(clientAddr)) < 0)
+        {
+            std::cerr << "Error en bind" << std::endl;
+        }
     }  
   
     UDPClient::~UDPClient()
     {
         close(sockfd);
     }
-  
+    
     void UDPClient::send_data(          // funciona que manda datagramas
         std::vector<std::string> data,
         int dest
@@ -126,7 +139,108 @@ namespace calculator {
         }
         cout << "Data sent successfully." << endl;
     }  
+    
+    string UDPClient::receive_message() {
+        string data;
+        char buffer[500];
+
+        sockaddr_in senderAddr{};
+        socklen_t len = sizeof(senderAddr);
+
+        do {
+            int received = recvfrom(sockfd, buffer, 500, 0, (sockaddr *)&senderAddr, &len);
+            if (received <= 0) continue;
+          
+            int checksuml = 0;
+              
+            int checksumr = stoi(string(buffer, 2)); // 2 primeros bytes del datagrama
+            
+            for(int x{2};x<500;x++){
+              checksuml+=buffer[x];
+            }
+            checksuml = checksuml % 100;  
+          
+            if(checksuml != checksumr){
+              cout<<"incorrecto"<<endl;
+              continue;
+            }
+            
+            string nodeid(buffer+2, 2);
+          
+            string flag(buffer+4, 2);
+          
+            string seq(buffer+6, 4);   
+
+
+            string payload(buffer + 10, 490);
+            data += payload;
+
+
+            if (flag == "11") {
+                break;
+            }
+
+        } while (true);
+
+        return data;
+    }
   
+    
+    void UDPClient::parseProtocol(const string &data) {
+
+        int idx = 0;
+      
+        char action = data[idx];
+        
+        idx ++;
+      
+        int datasize = stoi(data.substr(idx, 10));
+
+        idx +=10;
+      
+        string fileData = data.substr(idx, datasize);
+        idx+=datasize;
+      
+        if(action == 'M'){
+          ofstream file("pesos"+ to_string(Mactual)+ ".txt" );
+
+          if(file.is_open())
+          {
+              file << fileData;
+              file.close();
+
+              std::cout << "Pesos creado correctamente" << std::endl;
+          }
+          
+          if(Mactual == 3){ // para que sea pesos1.txt o pesos2.txt o pesos3.txt
+            Mactual=1;
+          }
+          else{
+            Mactual++;
+          }
+          
+        }
+        if(action == 'D'){
+          
+          ofstream file("Dataset of Diabetes.csv");
+
+          if(file.is_open())
+          {
+              file << fileData;
+              file.close();
+
+              std::cout << "Data creado correctamente" << std::endl;
+          }
+        }
+    }
+  
+    void UDPClient::fread(){
+  
+        string data = receive_message();
+        parseProtocol(data);
+
+    }
+    
   
     vector<string> split(string data){
         int totalfrags = (data.size() + payloadsize - 1) / payloadsize;
