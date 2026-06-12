@@ -1,24 +1,5 @@
 #!/usr/bin/env python3
-"""
-╔═══════════════════════════════════════════════════════════════════════════╗
-║  MAESTRO  –  Coordinador del aprendizaje federado (fila a fila)           ║
-║                                                                            ║
-║  Flujo por MOMENTO i (= fila i del dataset):                              ║
-║    1. Maestro hace forward + backpropagation con su fila i                ║
-║    2. Extrae la matriz de pesos actualizada (POST-backprop)               ║
-║    3. Envía la MISMA matriz a todos los esclavos    → TYPE 'M'            ║
-║    4. Recibe la matriz actualizada de cada esclavo  ← TYPE 'm'           ║
-║    5. Calcula la MEDIA de todas las matrices                              ║
-║       (maestro + esclavos)                                                ║
-║    6. Actualiza el MLP con la media → siguiente momento                  ║
-║                                                                            ║
-║  Antes del loop: envía la porción del dataset a cada esclavo → TYPE 'D'  ║
-║                                                                            ║
-║  Los datagramas se muestran en terminal (C++) con:                        ║
-║    WRITE:>>>[CS][ID][FL][SQ][T][DS][DATA...]<<<                           ║
-║    READ :>>>[CS][ID][FL][SQ][T][DS][DATA...]<<<                           ║
-╚═══════════════════════════════════════════════════════════════════════════╝
-"""
+
 
 import argparse
 import sys
@@ -43,11 +24,9 @@ except ImportError:
     print("  cp comm_module*.so ../python/")
     sys.exit(1)
 
-# ══════════════════════════════════════════════════════════════════════════
-#  Configuración
-# ══════════════════════════════════════════════════════════════════════════
+
 MASTER_PORT     = 9000
-SLAVE_PORT_BASE = 9001   # esclavo i → puerto (9001 + i - 1), ej: i=4 → 9004
+SLAVE_PORT_BASE = 9001  
 SLAVE_HOST      = "127.0.0.1"
 
 INPUT_DIM       = 14
@@ -56,12 +35,10 @@ HIDDEN1         = 128
 HIDDEN2         = 64
 LR              = 0.001
 
-RECV_TIMEOUT_MS = 120_000   # 2 min por esclavo
+RECV_TIMEOUT_MS = 120_000  
 
 
-# ══════════════════════════════════════════════════════════════════════════
-#  Modelo  (idéntico en maestro y esclavos)
-# ══════════════════════════════════════════════════════════════════════════
+
 class MulticlassClassifier(nn.Module):
     def __init__(self):
         super().__init__()
@@ -76,11 +53,9 @@ class MulticlassClassifier(nn.Module):
         return self.class_logits(x), self.class_log_vars(x)
 
 
-# ══════════════════════════════════════════════════════════════════════════
-#  Serialización de pesos
-# ══════════════════════════════════════════════════════════════════════════
+
 def weights_to_bytes(model: nn.Module) -> bytes:
-    """Aplana todos los parámetros en orden → bytes float32."""
+    """Aplana todos los parámetros en orden- bytes float32."""
     return np.concatenate([
         p.data.cpu().numpy().astype(np.float32).flatten()
         for p in model.parameters()
@@ -106,9 +81,7 @@ def mean_weights(weight_bytes_list: list) -> bytes:
     return arrays.mean(axis=0).astype(np.float32).tobytes()
 
 
-# ══════════════════════════════════════════════════════════════════════════
-#  Serialización del dataset para enviarlo por UDP
-# ══════════════════════════════════════════════════════════════════════════
+
 def serialize_dataset(X: np.ndarray, y: np.ndarray) -> bytes:
     """
     Header 12 bytes: [n_samples:uint32][n_features:uint32][n_classes:uint32]
@@ -122,32 +95,23 @@ def serialize_dataset(X: np.ndarray, y: np.ndarray) -> bytes:
             + y.astype(np.float32).tobytes())
 
 
-# ══════════════════════════════════════════════════════════════════════════
-#  Carga y partición del dataset
-# ══════════════════════════════════════════════════════════════════════════
+
 def load_and_partition(csv_path: str, n_slaves: int):
-    """
-    Carga el CSV y divide en (n_slaves + 1) partes IGUALES.
-    Parte 0 → maestro  |  Partes 1..N → esclavos
-    Retorna: (X_master, y_master), [(X_s1,y_s1), (X_s2,y_s2), ...]
-    """
+
     df   = pd.read_csv(csv_path, header=None, skiprows=1)
     X_np = df.iloc[:, :INPUT_DIM].values.astype(np.float32)
     y_np = df.iloc[:, -NUM_CLASSES:].values.astype(np.float32)
 
     total   = len(X_np)
     n_parts = n_slaves + 1
-    size    = total // n_parts          # tamaño base por partición
-    # Usar exactamente size filas por partición (descartar el residuo)
+    size    = total // n_parts         
     parts_X = [X_np[i * size:(i + 1) * size] for i in range(n_parts)]
     parts_y = [y_np[i * size:(i + 1) * size] for i in range(n_parts)]
 
     return (parts_X[0], parts_y[0]), list(zip(parts_X[1:], parts_y[1:]))
 
 
-# ══════════════════════════════════════════════════════════════════════════
-#  Función principal
-# ══════════════════════════════════════════════════════════════════════════
+
 def main():
     parser = argparse.ArgumentParser(description="Maestro – Federated Learning")
     parser.add_argument("--csv",    default="Dataset of Diabetes .csv")
@@ -156,7 +120,7 @@ def main():
                         help="Modo solo maestro: usa todo el dataset sin esclavos ni red")
     args    = parser.parse_args()
     if args.no_slaves:
-        n_slaves = 0    # load_and_partition con 0 esclavos devuelve todo el CSV al maestro
+        n_slaves = 0   
         s_ports  = []
     else:
         n_slaves = args.slaves
@@ -173,10 +137,10 @@ def main():
         print(f"  Puertos esclavos: {s_ports}")
     print()
 
-    # En modo --no-slaves no se usa red, node queda en None
+
     node = None if args.no_slaves else comm_module.RDTNode(MASTER_PORT, 0, print)
 
-    # ── Cargar y particionar dataset ──────────────────────────────────────
+    #Cargar y particionar dataset
     (X_m, y_m), slave_parts = load_and_partition(args.csv, n_slaves)
     n_momentos = len(X_m)   # número de filas = número de momentos
 
@@ -186,57 +150,54 @@ def main():
         print(f"  Datos esclavo {i} : {len(Xs)} filas")
     print()
 
-    # ── Modelo y optimizador ──────────────────────────────────────────────
+    #Modelo y optimizador
     model     = MulticlassClassifier()
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=LR)
 
-    # ── Convertir datos del maestro a tensores (fila a fila) ──────────────
-    X_t = torch.tensor(X_m)   # shape [n_momentos, INPUT_DIM]
-    y_t = torch.tensor(y_m)   # shape [n_momentos, NUM_CLASSES]
+    #Convertir datos del maestro a tensores (fila a fila)
+    X_t = torch.tensor(X_m)  
+    y_t = torch.tensor(y_m)   
 
-    # ══════════════════════════════════════════════════════════════════════
-    #  DISTRIBUCIÓN DEL DATASET A LOS ESCLAVOS (solo una vez, antes del loop)
-    # ══════════════════════════════════════════════════════════════════════
+    
+    #  Distribucion del datsaset a los esclavos (solo una vez, antes del loop)
     if not args.no_slaves:
         print(sep)
         print("  DISTRIBUCIÓN DEL DATASET")
         print(sep)
         for i, ((Xs, ys), port) in enumerate(zip(slave_parts, s_ports), 1):
             data_bytes = serialize_dataset(Xs, ys)
-            print(f"\n[Maestro] → Enviando dataset a Esclavo {i} "
+            print(f"\n[Maestro]- Enviando dataset a Esclavo {i} "
                   f"({len(Xs)} filas, {len(data_bytes)} bytes)...")
             try:
                 node.send_data(SLAVE_HOST, port, i, data_bytes)
-                print(f"[Maestro] ✓ Dataset enviado a Esclavo {i}")
+                print(f"[Maestro]  Dataset enviado a Esclavo {i}")
             except RuntimeError as e:
-                print(f"[Maestro] ⚠ Error enviando dataset a Esclavo {i}: {e}")
+                print(f"[Maestro] Error enviando dataset a Esclavo {i}: {e}")
         print()
 
-    # ══════════════════════════════════════════════════════════════════════
-    #  MÉTRICAS
-    # ══════════════════════════════════════════════════════════════════════
-    losses        = []    # pérdida del maestro por momento
+
+    losses        = []    
     y_true_all    = []
     y_pred_all    = []
 
-    # ══════════════════════════════════════════════════════════════════════
-    #  LOOP PRINCIPAL: un MOMENTO por fila
-    # ══════════════════════════════════════════════════════════════════════
+  
+    #  Loop principal: un momento por fila
+  
     for momento in range(n_momentos):
         print(sep)
         print(f"  MOMENTO {momento + 1} / {n_momentos}")
         print(sep)
 
-        # ── PASO 1: Maestro entrena con la fila `momento` (batch = 1) ────
-        sx = X_t[momento].unsqueeze(0)   # shape [1, INPUT_DIM]
-        sy = y_t[momento].unsqueeze(0)   # shape [1, NUM_CLASSES]
+        #Maestro entrena con la fila `momento`(batch = 1)
+        sx = X_t[momento].unsqueeze(0)   
+        sy = y_t[momento].unsqueeze(0)  
 
         model.train()
         optimizer.zero_grad()
         logits, _ = model(sx)
         loss = criterion(logits, sy)
-        loss.backward()           # ← BACKPROPAGATION
+        loss.backward()           #BACKPROPAGATION
         optimizer.step()
         losses.append(loss.item())
 
@@ -248,44 +209,43 @@ def main():
         print(f"[Maestro] Momento {momento+1}: loss={loss.item():.4f} "
               f"pred={pred} label={label}")
 
-        # ── PASO 2: Extraer pesos POST-backprop ───────────────────────────
+        #Extraer pesos POST-backprop
         master_w = weights_to_bytes(model)
-        all_weights = [master_w]   # la del maestro siempre se incluye
+        all_weights = [master_w]   
 
-        # ── PASO 3-4: Para cada esclavo: enviar pesos, recibir pesos ──────
+        #Para cada esclavo: enviar pesos, recibir pesos
         for i, port in enumerate(s_ports, 1):
-            print(f"\n[Maestro] → Enviando pesos (TYPE=M) al Esclavo {i}...")
+            print(f"\n[Maestro]- Enviando pesos (TYPE=M) al Esclavo {i}...")
             try:
                 node.send_matrix(SLAVE_HOST, port, i, master_w)
-                print(f"[Maestro] ✓ Pesos enviados al Esclavo {i}")
+                print(f"[Maestro]  Pesos enviados al Esclavo {i}")
             except RuntimeError as e:
-                print(f"[Maestro] ⚠ Error enviando a Esclavo {i}: {e}")
+                print(f"[Maestro] Error enviando a Esclavo {i}: {e}")
                 continue
 
             print(f"[Maestro] ← Esperando pesos (TYPE=m) del Esclavo {i}...")
             result = node.recv_any(RECV_TIMEOUT_MS)
             if result is None:
-                print(f"[Maestro] ⚠ Timeout Esclavo {i} — se omite")
+                print(f"[Maestro] Timeout Esclavo {i} — se omite")
                 continue
             tipo, raw = result
             if tipo != 'm':
-                print(f"[Maestro] ⚠ Tipo inesperado '{tipo}' del Esclavo {i}")
+                print(f"[Maestro] Tipo inesperado '{tipo}' del Esclavo {i}")
                 continue
             all_weights.append(raw)
-            print(f"[Maestro] ✓ Pesos recibidos del Esclavo {i} ({len(raw)} B)")
+            print(f"[Maestro]  Pesos recibidos del Esclavo {i} ({len(raw)} B)")
 
-        # ── PASO 5: Media de todas las matrices ───────────────────────────
+        # Media de todas las matrices
         avg_bytes = mean_weights(all_weights)
         n_contrib = len(all_weights)
 
-        # ── PASO 6: Actualizar MLP con la media ───────────────────────────
+        #Actualizar MLP con la media
         bytes_to_weights(model, avg_bytes)
-        print(f"\n[Maestro] Media calculada con {n_contrib} matrices → "
+        print(f"\n[Maestro] Media calculada con {n_contrib} matrices- "
               f"modelo actualizado")
 
-    # ══════════════════════════════════════════════════════════════════════
-    #  RESULTADOS FINALES
-    # ══════════════════════════════════════════════════════════════════════
+   
+    #Resultados finales
     correct = sum(t == p for t, p in zip(y_true_all, y_pred_all))
     acc     = correct / max(len(y_true_all), 1)
 
@@ -301,7 +261,7 @@ def main():
     print(classification_report(y_true_all, y_pred_all, digits=3,
                                  zero_division=0))
 
-    # ── Gráficas ──────────────────────────────────────────────────────────
+    #Gráficas
     fig, axes = plt.subplots(1, 2, figsize=(12, 4))
 
     axes[0].plot(range(1, n_momentos + 1), losses, linewidth=0.8)
@@ -319,7 +279,7 @@ def main():
 
     plt.tight_layout()
     plt.savefig("master_resultados.png", dpi=120)
-    print("[Maestro] Gráficas guardadas → master_resultados.png")
+    print("[Maestro] Gráficas guardadas- master_resultados.png")
 
 
 if __name__ == "__main__":
