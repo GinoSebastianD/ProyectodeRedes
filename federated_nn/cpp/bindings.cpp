@@ -5,21 +5,7 @@
 
 namespace py = pybind11;
 
-/* ═══════════════════════════════════════════════════════════════════════════
- *  Módulo comm_module
- *
- *  Métodos:
- *    send_matrix      (ip, port, dest_id, bytes)  → TYPE 'M'  maestro→esclavo
- *    send_data        (ip, port, dest_id, bytes)  → TYPE 'D'  maestro→esclavo
- *    send_matrix_slave(ip, port, dest_id, bytes)  → TYPE 'm'  esclavo→maestro
- *    recv_any         (timeout_ms) → (type:str, bytes) | None
- *      type == 'M'  pesos del maestro
- *      type == 'D'  porción del dataset
- *      type == 'm'  pesos devueltos por esclavo
- *
- *  El display de datagramas (WRITE:>>>…<<< / READ :>>>…<<<) se realiza
- *  internamente en C++ y se envía al log_fn de Python (e.g. print).
- * ═══════════════════════════════════════════════════════════════════════════ */
+
 
 PYBIND11_MODULE(comm_module, m) {
     m.doc() = "Módulo RDT sobre UDP – aprendizaje federado";
@@ -33,7 +19,7 @@ PYBIND11_MODULE(comm_module, m) {
              "my_node_id: 0=maestro, 1..N=esclavos\n"
              "log_fn: callback Python para display (pasa print)")
 
-        // ── Maestro envía pesos al esclavo (TYPE = 'M') ───────────────────
+        //Maestro envía pesos al esclavo (TYPE = 'M')
         .def("send_matrix",
             [](rdt::RDTNode& self, const std::string& ip, int port,
                uint16_t dest_id, py::bytes data) -> int {
@@ -45,7 +31,7 @@ PYBIND11_MODULE(comm_module, m) {
             py::arg("dest_id"), py::arg("data"),
             "Maestro → Esclavo: envía matriz de pesos (TYPE='M')")
 
-        // ── Maestro envía porción de dataset al esclavo (TYPE = 'D') ──────
+        // Maestro envía porción de dataset al esclavo (TYPE = 'D')
         .def("send_data",
             [](rdt::RDTNode& self, const std::string& ip, int port,
                uint16_t dest_id, py::bytes data) -> int {
@@ -57,7 +43,7 @@ PYBIND11_MODULE(comm_module, m) {
             py::arg("dest_id"), py::arg("data"),
             "Maestro → Esclavo: envía porción del dataset (TYPE='D')")
 
-        // ── Esclavo devuelve pesos al maestro (TYPE = 'm') ────────────────
+        // Esclavo devuelve pesos al maestro (TYPE = 'm')
         .def("send_matrix_slave",
             [](rdt::RDTNode& self, const std::string& ip, int port,
                uint16_t dest_id, py::bytes data) -> int {
@@ -69,7 +55,7 @@ PYBIND11_MODULE(comm_module, m) {
             py::arg("dest_id"), py::arg("data"),
             "Esclavo → Maestro: devuelve pesos actualizados (TYPE='m')")
 
-        // ── Recibir cualquier mensaje ──────────────────────────────────────
+        // Recibir cualquier mensaje 
         // Retorna (type:str, data:bytes) o None en timeout.
         .def("recv_any",
             [](rdt::RDTNode& self, int timeout_ms) -> py::object {
