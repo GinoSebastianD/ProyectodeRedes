@@ -11,26 +11,10 @@
 
 namespace rdt {
 
-// ── Constructor ────────────────────────────────────────────────────────────
+//Constructor
 RDTNode::RDTNode(int listen_port, uint16_t my_node_id, LogFn log_fn)
     : sock_(listen_port), my_id_(my_node_id), log_fn_(std::move(log_fn)) {}
 
-// ══════════════════════════════════════════════════════════════════════════
-//  DISPLAY DE DATAGRAMAS  (estilo terminal de la imagen)
-//
-//  Formato por campo (orden del protocolo):
-//    checksum : 4 dígitos decimales
-//    node_id  : 4 dígitos decimales
-//    flags    : 4 dígitos decimales  (0000 | 0001 | 0003)
-//    seq      : 8 dígitos decimales
-//    type     : 1 carácter           (M | D | m | a | N)
-//    data_size: 8 dígitos decimales
-//    data     : 485 bytes → printable = char, no-printable = '#'
-//
-//  Total display = 4+4+4+8+1+8+485 = 514 chars → ~7 líneas de 80 cols
-//  Primera línea: "WRITE:>>>" / "READ :>>>" + contenido
-//  Última línea : contenido + "<<<"
-// ══════════════════════════════════════════════════════════════════════════
 void RDTNode::print_packet(const Packet& pkt,
                            const std::string& direction) const {
     if (!log_fn_) return;
@@ -39,7 +23,7 @@ void RDTNode::print_packet(const Packet& pkt,
     std::string s;
     s.reserve(520);
 
-    // ── Campos del header ─────────────────────────────────────────────────
+    //Campos del header 
     std::snprintf(buf, sizeof(buf), "%04u",
                   static_cast<unsigned>(pkt.hdr.checksum)); s += buf;  // checksum
     std::snprintf(buf, sizeof(buf), "%04u",
@@ -52,15 +36,15 @@ void RDTNode::print_packet(const Packet& pkt,
     std::snprintf(buf, sizeof(buf), "%08u",
                   static_cast<unsigned>(pkt.hdr.data_size)); s += buf; // data_size
 
-    // ── Bytes de datos: printable → carácter, resto → '#' ─────────────────
+    //Bytes de datos
     for (int i = 0; i < MAX_DATA; ++i) {
         uint8_t b = pkt.data[i];
         s += (b >= 32 && b <= 126) ? static_cast<char>(b) : '#';
     }
 
-    // ── Partir en líneas de 80 chars ──────────────────────────────────────
+    
     const int    LINE_W = 80;
-    const std::string pfx = direction + ":>>>";  // "WRITE:>>>" o "READ :>>>"
+    const std::string pfx = direction + ":>>>";  
 
     std::vector<std::string> lines;
     bool   first = true;
@@ -80,9 +64,7 @@ void RDTNode::print_packet(const Packet& pkt,
     for (const auto& l : lines) log_fn_(l);
 }
 
-// ══════════════════════════════════════════════════════════════════════════
-//  ENVIAR ACK / NACK
-// ══════════════════════════════════════════════════════════════════════════
+//Enviar ACK / NACK
 void RDTNode::send_response(uint8_t resp_type, uint32_t seq,
                             const std::string& ip, int port) {
     Packet ack{};
@@ -98,17 +80,15 @@ void RDTNode::send_response(uint8_t resp_type, uint32_t seq,
     print_packet(ack, "WRITE");  // ← display del datagrama enviado
 }
 
-// ══════════════════════════════════════════════════════════════════════════
-//  STOP-AND-WAIT: enviar UN paquete y esperar ACK
-// ══════════════════════════════════════════════════════════════════════════
+//Stop-and-wait: enviar UN paquete y esperar ACK
 void RDTNode::send_one(const Packet& pkt,
                        const std::string& dest_ip, int dest_port) {
     for (int attempt = 1; attempt <= MAX_RETRIES; ++attempt) {
-        // ── Enviar datagrama ──────────────────────────────────────────────
-        print_packet(pkt, "WRITE");          // display ANTES de enviar
+        //Enviar datagrama 
+        print_packet(pkt, "WRITE");          
         sock_.send_to(&pkt, PACKET_SIZE, dest_ip, dest_port);
 
-        // ── Esperar ACK/NACK (500 ms) ─────────────────────────────────────
+        //Esperar ACK/NACK (500 ms)
         Packet resp{};
         Addr   src;
         int n = sock_.recv_from(&resp, PACKET_SIZE, TIMEOUT_MS, src);
@@ -120,7 +100,7 @@ void RDTNode::send_one(const Packet& pkt,
             continue;
         }
 
-        print_packet(resp, "READ ");         // display del ACK/NACK recibido
+        print_packet(resp, "READ ");         
 
         if (!verify_checksum(resp)) {
             log("[RDT:" + std::to_string(my_id_) +
@@ -144,7 +124,7 @@ void RDTNode::send_one(const Packet& pkt,
         }
 
         if (resp.hdr.type == TYPE_ACK && resp.hdr.seq == pkt.hdr.seq) {
-            return;  // ✓ ACK correcto
+            return;  //ACK correcto
         }
 
         log("[RDT:" + std::to_string(my_id_) + "] ACK stale seq=" +
@@ -157,9 +137,9 @@ void RDTNode::send_one(const Packet& pkt,
         std::to_string(pkt.hdr.seq));
 }
 
-// ══════════════════════════════════════════════════════════════════════════
-//  ENVIAR MENSAJE COMPLETO (con fragmentación)
-// ══════════════════════════════════════════════════════════════════════════
+
+//Enviar mensaje completo (con fragmentación)
+
 int RDTNode::send(const std::string& dest_ip, int dest_port,
                   uint16_t dest_id, uint8_t type,
                   const std::vector<uint8_t>& data) {
@@ -205,9 +185,9 @@ int RDTNode::send(const std::string& dest_ip, int dest_port,
     return static_cast<int>(num_pkts);
 }
 
-// ══════════════════════════════════════════════════════════════════════════
-//  RECIBIR MENSAJE COMPLETO (con reensamblaje)
-// ══════════════════════════════════════════════════════════════════════════
+
+//Recibir mensaje completo (con reensamblaje)
+
 RDTNode::Message RDTNode::recv(int timeout_ms) {
     std::map<uint32_t, std::vector<uint8_t>> fragments;
     uint32_t expected_size = 0;
@@ -236,13 +216,13 @@ RDTNode::Message RDTNode::recv(int timeout_ms) {
         int n = sock_.recv_from(&pkt, PACKET_SIZE, wait, src);
         if (n < 0) continue;
 
-        print_packet(pkt, "READ ");          // display de TODO lo recibido
+        print_packet(pkt, "READ ");          
 
-        // Ignorar ACK/NACK (son respuestas al flujo de envío propio)
+      
         if (pkt.hdr.type == TYPE_ACK || pkt.hdr.type == TYPE_NACK)
             continue;
 
-        // ── Verificar checksum ────────────────────────────────────────────
+        //Verificar checksum
         if (!verify_checksum(pkt)) {
             log("[RDT:" + std::to_string(my_id_) +
                 "] Checksum inválido seq=" + std::to_string(pkt.hdr.seq) +
@@ -256,7 +236,7 @@ RDTNode::Message RDTNode::recv(int timeout_ms) {
             expected_size = pkt.hdr.data_size;
         if (msg_type == 0) msg_type = pkt.hdr.type;
 
-        // ── Duplicado: re-enviar ACK ──────────────────────────────────────
+        //Duplicado: re-enviar ACK 
         if (fragments.count(seq)) {
             send_response(TYPE_ACK, seq, src.ip, src.port);
             log("[RDT:" + std::to_string(my_id_) +
@@ -264,14 +244,14 @@ RDTNode::Message RDTNode::recv(int timeout_ms) {
             continue;
         }
 
-        // ── Almacenar fragmento ───────────────────────────────────────────
+        //Almacenar fragmento
         uint32_t offset = seq * static_cast<uint32_t>(MAX_DATA);
         uint32_t chunk  = (expected_size > 0)
             ? std::min(static_cast<uint32_t>(MAX_DATA), expected_size - offset)
             : static_cast<uint32_t>(MAX_DATA);
 
         fragments[seq] = std::vector<uint8_t>(pkt.data, pkt.data + chunk);
-        send_response(TYPE_ACK, seq, src.ip, src.port);  // ACK → se imprime
+        send_response(TYPE_ACK, seq, src.ip, src.port);  // ACK - se imprime
 
         {
             std::ostringstream os;
@@ -287,7 +267,7 @@ RDTNode::Message RDTNode::recv(int timeout_ms) {
         }
     }
 
-    // ── Reensamblar ───────────────────────────────────────────────────────
+    //Reensamblar
     Message msg;
     msg.type = msg_type;
     msg.data.reserve(expected_size);
@@ -308,4 +288,4 @@ RDTNode::Message RDTNode::recv(int timeout_ms) {
     return msg;
 }
 
-} // namespace rdt
+} 
