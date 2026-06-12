@@ -50,7 +50,7 @@ void UDPSocket::send_to(const void* buf, int len,
 
 int UDPSocket::recv_from(void* buf, int max_len,
                          int timeout_ms, Addr& src) {
-    // Espera con select() hasta timeout_ms milisegundos
+    // Espera con select() hasta timeout
     fd_set fds;
     FD_ZERO(&fds);
     FD_SET(fd_, &fds);
@@ -77,4 +77,4 @@ int UDPSocket::recv_from(void* buf, int max_len,
     return n;
 }
 
-} // namespace rdt
+} 
