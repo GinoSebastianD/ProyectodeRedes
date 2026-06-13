@@ -1,24 +1,4 @@
-#!/usr/bin/env python3
-"""
-╔═══════════════════════════════════════════════════════════════════════════╗
-║  MAESTRO  –  Coordinador del aprendizaje federado (fila a fila)           ║
-║                                                                            ║
-║  Flujo por MOMENTO i (= fila i del dataset):                              ║
-║    1. Maestro hace forward + backpropagation con su fila i                ║
-║    2. Extrae la matriz de pesos actualizada (POST-backprop)               ║
-║    3. Envía la MISMA matriz a todos los esclavos    - TYPE 'M'            ║
-║    4. Recibe la matriz actualizada de cada esclavo  ← TYPE 'm'           ║
-║    5. Calcula la MEDIA de todas las matrices                              ║
-║       (maestro + esclavos)                                                ║
-║    6. Actualiza el MLP con la media - siguiente momento                  ║
-║                                                                            ║
-║  Antes del loop: envía la porción del dataset a cada esclavo - TYPE 'D'  ║
-║                                                                            ║
-║  Los datagramas se muestran en terminal (C++) con:                        ║
-║    WRITE:>>>[CS][ID][FL][SQ][T][DS][DATA...]<<<                           ║
-║    READ :>>>[CS][ID][FL][SQ][T][DS][DATA...]<<<                           ║
-╚═══════════════════════════════════════════════════════════════════════════╝
-"""
+
 
 import argparse
 import sys
@@ -43,11 +23,10 @@ except ImportError:
     print("  cp comm_module*.so ../python/")
     sys.exit(1)
 
-# ══════════════════════════════════════════════════════════════════════════
+
 #  Configuración
-# ══════════════════════════════════════════════════════════════════════════
 MASTER_PORT     = 9000
-SLAVE_PORT_BASE = 9001   # esclavo i - puerto (9001 + i - 1), ej: i=4 - 9004
+SLAVE_PORT_BASE = 9001   # esclavo i 
 SLAVE_HOST      = "127.0.0.1"
 
 INPUT_DIM       = 14
@@ -59,9 +38,9 @@ LR              = 0.001
 RECV_TIMEOUT_MS = 120_000   # 2 min por esclavo
 
 
-# ══════════════════════════════════════════════════════════════════════════
+
 #  Modelo  (idéntico en maestro y esclavos)
-# ══════════════════════════════════════════════════════════════════════════
+
 class MulticlassClassifier(nn.Module):
     def __init__(self):
         super().__init__()
@@ -76,9 +55,9 @@ class MulticlassClassifier(nn.Module):
         return self.class_logits(x), self.class_log_vars(x)
 
 
-# ══════════════════════════════════════════════════════════════════════════
+
 #  Serialización de pesos
-# ══════════════════════════════════════════════════════════════════════════
+
 def weights_to_bytes(model: nn.Module) -> bytes:
     """Aplana todos los parámetros en orden - bytes float32."""
     return np.concatenate([
@@ -106,9 +85,9 @@ def mean_weights(weight_bytes_list: list) -> bytes:
     return arrays.mean(axis=0).astype(np.float32).tobytes()
 
 
-# ══════════════════════════════════════════════════════════════════════════
+
 #  Serialización del dataset para enviarlo por UDP
-# ══════════════════════════════════════════════════════════════════════════
+
 def serialize_dataset(X: np.ndarray, y: np.ndarray) -> bytes:
     """
     Header 12 bytes: [n_samples:uint32][n_features:uint32][n_classes:uint32]
@@ -122,9 +101,8 @@ def serialize_dataset(X: np.ndarray, y: np.ndarray) -> bytes:
             + y.astype(np.float32).tobytes())
 
 
-# ══════════════════════════════════════════════════════════════════════════
+
 #  Carga y partición del dataset
-# ══════════════════════════════════════════════════════════════════════════
 def load_and_partition(csv_path: str, n_slaves: int, test_ratio: float = 0.2):
     """
     Comparación justa — tres pasos:
@@ -142,17 +120,17 @@ def load_and_partition(csv_path: str, n_slaves: int, test_ratio: float = 0.2):
     X_np = df.iloc[:, :INPUT_DIM].values.astype(np.float32)
     y_np = df.iloc[:, -NUM_CLASSES:].values.astype(np.float32)
 
-    # ── 1. Mezclar con semilla fija (reproducible) ────────────────────────
+    #Mezclar con semilla fija (reproducible)
     rng = np.random.default_rng(42)
     idx = rng.permutation(len(X_np))
     X_np, y_np = X_np[idx], y_np[idx]
 
-    # ── 2. Separar test set ANTES de particionar ──────────────────────────
+    #Separar test set ANTES de particionar 
     n_test           = int(len(X_np) * test_ratio)
     X_test,  y_test  = X_np[:n_test],  y_np[:n_test]
     X_train, y_train = X_np[n_test:],  y_np[n_test:]
 
-    # ── 3. Particionar el set de entrenamiento ────────────────────────────
+    #Particionar el set de entrenamiento
     n_parts = n_slaves + 1
     size    = len(X_train) // n_parts
     parts_X = [X_train[i * size:(i + 1) * size] for i in range(n_parts)]
@@ -161,9 +139,9 @@ def load_and_partition(csv_path: str, n_slaves: int, test_ratio: float = 0.2):
     return (parts_X[0], parts_y[0]), list(zip(parts_X[1:], parts_y[1:])), (X_test, y_test)
 
 
-# ══════════════════════════════════════════════════════════════════════════
+
 #  Función principal
-# ══════════════════════════════════════════════════════════════════════════
+
 def main():
     parser = argparse.ArgumentParser(description="Maestro – Federated Learning")
     parser.add_argument("--csv",    default="Dataset of Diabetes .csv")
@@ -194,7 +172,7 @@ def main():
     # En modo --no-slaves no se usa red, node queda en None
     node = None if args.no_slaves else comm_module.RDTNode(MASTER_PORT, 0, print)
 
-    # ── Cargar y particionar dataset ──────────────────────────────────────
+    #Cargar y particionar dataset 
     (X_m, y_m), slave_parts, (X_test, y_test) = load_and_partition(
         args.csv, n_slaves, args.test_ratio)
     n_momentos = len(X_m)
@@ -206,18 +184,17 @@ def main():
     print(f"  Test set        : {len(X_test)} filas  ({args.test_ratio:.0%}) — mismo para ambos modos")
     print()
 
-    # ── Modelo y optimizador ──────────────────────────────────────────────
+    #Modelo y optimizador
     model     = MulticlassClassifier()
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=LR)
 
-    # ── Convertir datos del maestro a tensores (fila a fila) ──────────────
+    # Convertir datos del maestro a tensores (fila a fila)
     X_t = torch.tensor(X_m)   # shape [n_momentos, INPUT_DIM]
     y_t = torch.tensor(y_m)   # shape [n_momentos, NUM_CLASSES]
 
-    # ══════════════════════════════════════════════════════════════════════
-    #  DISTRIBUCIÓN DEL DATASET A LOS ESCLAVOS (solo una vez, antes del loop)
-    # ══════════════════════════════════════════════════════════════════════
+    
+    #  Distribucion del dataset (solo una vez, antes del loop)
     if not args.no_slaves:
         print(sep)
         print("  Distribucion del Dataset")
@@ -233,22 +210,22 @@ def main():
                 print(f"[Maestro]  Error enviando dataset a Esclavo {i}: {e}")
         print()
 
-    # ══════════════════════════════════════════════════════════════════════
-    #  MÉTRICAS
-    # ══════════════════════════════════════════════════════════════════════
+ 
+    #  Metricas
+
     losses        = []    # pérdida del maestro por momento
     y_true_all    = []
     y_pred_all    = []
 
-    # ══════════════════════════════════════════════════════════════════════
-    #  LOOP PRINCIPAL: un MOMENTO por fila
-    # ══════════════════════════════════════════════════════════════════════
+
+    #  Loop principal: un momento por fila
+
     for momento in range(n_momentos):
         print(sep)
         print(f"  Momento {momento + 1} / {n_momentos}")
         print(sep)
 
-        # ── PASO 1: Maestro entrena con la fila `momento` (batch = 1) ────
+        # Maestro entrena con la fila `momento`(batch = 1)
         sx = X_t[momento].unsqueeze(0)   # shape [1, INPUT_DIM]
         sy = y_t[momento].unsqueeze(0)   # shape [1, NUM_CLASSES]
 
@@ -256,7 +233,7 @@ def main():
         optimizer.zero_grad()
         logits, _ = model(sx)
         loss = criterion(logits, sy)
-        loss.backward()           # ← BACKPROPAGATION
+        loss.backward()           
         optimizer.step()
         losses.append(loss.item())
 
@@ -268,11 +245,11 @@ def main():
         print(f"[Maestro] Momento {momento+1}: loss={loss.item():.4f} "
               f"pred={pred} label={label}")
 
-        # ── PASO 2: Extraer pesos POST-backprop ───────────────────────────
+        #Extraer pesos POST-backprop
         master_w = weights_to_bytes(model)
         all_weights = [master_w]   # la del maestro siempre se incluye
 
-        # ── PASO 3-4: Para cada esclavo: enviar pesos, recibir pesos ──────
+        # Para cada esclavo: enviar pesos, recibir pesos
         for i, port in enumerate(s_ports, 1):
             print(f"\n[Maestro] - Enviando pesos (TYPE=M) al Esclavo {i}...")
             try:
@@ -294,20 +271,17 @@ def main():
             all_weights.append(raw)
             print(f"[Maestro]  Pesos recibidos del Esclavo {i} ({len(raw)} B)")
 
-        # ── PASO 5: Media de todas las matrices ───────────────────────────
+        #Media de todas las matrices
         avg_bytes = mean_weights(all_weights)
         n_contrib = len(all_weights)
 
-        # ── PASO 6: Actualizar MLP con la media ───────────────────────────
+        # Actualizar MLP con la media
         bytes_to_weights(model, avg_bytes)
         print(f"\n[Maestro] Media calculada con {n_contrib} matrices - "
               f"modelo actualizado")
 
-    # ══════════════════════════════════════════════════════════════════════
-    #  EVALUACIÓN FINAL SOBRE EL TEST SET  (comparación justa)
-    #  El mismo test set se usa en modo --no-slaves y con esclavos
-    #  - los números son directamente comparables
-    # ══════════════════════════════════════════════════════════════════════
+   
+    #  Evaluacion final sobre Test set
     model.eval()
     with torch.no_grad():
         logits_test, _ = model(torch.tensor(X_test))
@@ -317,7 +291,7 @@ def main():
     correct_test = sum(t == p for t, p in zip(y_true_test, y_pred_test))
     acc_test     = correct_test / max(len(y_true_test), 1)
 
-    # accuracy sobre datos de train propios (para referencia)
+    # accuracy sobre datos de train propios 
     correct_train = sum(t == p for t, p in zip(y_true_all, y_pred_all))
     acc_train     = correct_train / max(len(y_true_all), 1)
 
@@ -334,7 +308,7 @@ def main():
     print(classification_report(y_true_test, y_pred_test, digits=3,
                                  zero_division=0))
 
-    # ── Gráficas ──────────────────────────────────────────────────────────
+  
     fig, axes = plt.subplots(1, 2, figsize=(12, 4))
 
     axes[0].plot(range(1, n_momentos + 1), losses, linewidth=0.8)
