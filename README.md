@@ -14,8 +14,6 @@
 Each UDP datagram has a fixed size of *500 bytes*.  
 The protocol uses the following structure:
 
-# Datagram Structure
-
 ### Data Section
 
 <table>
@@ -24,6 +22,7 @@ The protocol uses the following structure:
       <th align="center">TYPE</th>
       <th align="center">DATA_SIZE</th>
       <th align="center">DATA</th>
+      <th align="center">PADDING</th>
     </tr>
   </thead>
   <tbody>
@@ -31,32 +30,65 @@ The protocol uses the following structure:
       <td align="center"><strong>1 byte</strong></td>
       <td align="center"><strong>10 bytes</strong></td>
       <td align="center"><strong>Variable</strong></td>
+      <td align="center"><strong>Variable</strong></td>
     </tr>
   </tbody>
 </table>
 
-header:
-```cabezera
-+------+-----+---------+-------------+---------------------+
-| SEQ | NODE_ID | CHUNK_TOTAL | CHUNK_NUM | ----| HASH %100|
-+------+-----+---------+-------------+------------+
-| 4 B |   2 B   |     4 B     |    4 B    |-----|   2 B    |
-+------+-----+---------+-------------+---------------------+
+### Header Section
 
----
+<table>
+  <thead>
+    <tr>
+      <th align="center">CHECKSUM</th>
+      <th align="center">NODE_ID</th>
+      <th align="center">FLAG</th>
+      <th align="center">SEQ</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td align="center"><strong>2 bytes</strong></td>
+      <td align="center"><strong>2 bytes</strong></td>
+      <td align="center"><strong>2 bytes</strong></td>
+      <td align="center"><strong>4 bytes</strong></td>
+    </tr>
+  </tbody>
+</table>
 
-## Packet Fields
+### Header Fields
 
-| Field | Size | Description |
-|:--|:--:|:--|
-| **TYPE** | 1 byte | Identifies the datagram type. Allows the receiver to interpret the `DATA` field correctly. Example values: `MATRIX`, `DATA`, `RESULT`, `ACK`, `NACK`, `FINISH`. |
-| **SEQ** | 4 byte | Datagram sequence number. Used to match packets with their corresponding `ACK` or `NACK`. |
-| **NODE_ID** | 2 bytes | Logical identifier of the node associated with the datagram. Example: `M0` for master node, `S1`, `S2`, `S3` for slave nodes. |
-| **CHUNK_TOTAL** | 4 bytes | Total number of chunks when the transmitted data is fragmented. |
-| **CHUNK_NUM** | 4 bytes | Current chunk index. Helps reconstruct fragmented data in the correct order. |
-| **DATA_SIZE** | 4 bytes | Actual size of the `DATA` field in bytes. Indicates how many bytes contain valid information. |
-| **DATA** | Variable | Payload of the datagram. Can contain matrices, weights, input data, partial results, control messages, or errors. |
-| **HASH** | 32 bytes | Integrity verification hash. The receiver recalculates the hash and compares it against this field to detect corruption. |
+<table>
+  <thead>
+    <tr>
+      <th align="center">Field</th>
+      <th align="center">Size</th>
+      <th align="center">Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>CHECKSUM</strong></td>
+      <td align="center">2 bytes</td>
+      <td>Integrity verification value used to detect whether the datagram was received correctly.</td>
+    </tr>
+    <tr>
+      <td><strong>NODE_ID</strong></td>
+      <td align="center">2 bytes</td>
+      <td>Logical identifier of the node involved in the communication. Example: <code>M0</code>, <code>S1</code>, <code>S2</code>, <code>S3</code>.</td>
+    </tr>
+    <tr>
+      <td><strong>FLAG</strong></td>
+      <td align="center">2 bytes</td>
+      <td>Indicates the position of the datagram in a fragmented message: start, body, or end.</td>
+    </tr>
+    <tr>
+      <td><strong>SEQ</strong></td>
+      <td align="center">4 bytes</td>
+      <td>Datagram sequence number used to order packets and match them with <code>ACK</code> or <code>NACK</code> responses.</td>
+    </tr>
+  </tbody>
+</table>
 
 ---
 Jacobson/ Karels Algorithm
@@ -75,7 +107,6 @@ many cases.[RFC5405] (https://www.rfc-editor.org/rfc/rfc5405?)
 
 ## Notes
 
-- The protocol supports **fragmented transmission** through `CHUNK_TOTAL` and `CHUNK_NUM`.
-- `SEQ` enables reliability mechanisms such as acknowledgments (`ACK`) and retransmissions (`NACK`).
-- `HASH` provides **datagram integrity verification**.
-- `DATA_SIZE` allows variable-length payloads inside the datagram.
+- The protocol supports **fragmented transmission** through `FLAG`.
+- `SEQ` enables reliability mechanisms such as acknowledgments (`ACK`), negative acknowledgments (`NACK`), and retransmissions.
+- `PADDING` is used to complete the fixed datagram size when the payload does not fill all the available space.
