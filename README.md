@@ -16,14 +16,25 @@ The protocol uses the following structure:
 
 # Datagram Structure
 
-data:
-```text
-+------+-----+---------+------+
-| TYPE | DATA_SIZE |   DATA   |
-+------+-----+---------+------+
-| 1 B  |    4 B    | Variable |
-+------+-----+---------+------+
-```
+### Data Section
+
+<table>
+  <thead>
+    <tr>
+      <th align="center">TYPE</th>
+      <th align="center">DATA_SIZE</th>
+      <th align="center">DATA</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td align="center"><strong>1 byte</strong></td>
+      <td align="center"><strong>10 bytes</strong></td>
+      <td align="center"><strong>Variable</strong></td>
+    </tr>
+  </tbody>
+</table>
+
 header:
 ```cabezera
 +------+-----+---------+-------------+---------------------+
