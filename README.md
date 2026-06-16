@@ -28,7 +28,7 @@ The protocol uses the following structure:
   <tbody>
     <tr>
       <td align="center"><strong>1 byte</strong></td>
-      <td align="center"><strong>10 bytes</strong></td>
+      <td align="center"><strong>4 bytes</strong></td>
       <td align="center"><strong>Variable</strong></td>
       <td align="center"><strong>Variable</strong></td>
     </tr>
