@@ -1,25 +1,3 @@
-#!/usr/bin/env python3
-"""
-╔═══════════════════════════════════════════════════════════════════════════╗
-║  ESCLAVO  –  Nodo de entrenamiento local (fila a fila)                    ║
-║                                                                            ║
-║  Flujo:                                                                    ║
-║    [Una sola vez al inicio]                                               ║
-║      1. Recibe su porción del dataset del maestro  ← TYPE 'D'            ║
-║                                                                            ║
-║    [Por cada MOMENTO i]                                                   ║
-║      2. Recibe la matriz de pesos del maestro      ← TYPE 'M'            ║
-║      3. Carga los pesos en su modelo local                                ║
-║      4. Entrena con su FILA i (forward + backprop) batch = 1             ║
-║      5. Envía la matriz de pesos actualizada       → TYPE 'm'            ║
-║                                                                            ║
-║  Uso (una terminal por esclavo):                                          ║
-║    python slave.py --node-id 1 --port 9001                               ║
-║    python slave.py --node-id 2 --port 9002                               ║
-║    python slave.py --node-id 3 --port 9003                               ║
-╚═══════════════════════════════════════════════════════════════════════════╝
-"""
-
 import argparse
 import sys
 import numpy as np
@@ -36,9 +14,9 @@ except ImportError:
     print("  cp comm_module*.so ../python/")
     sys.exit(1)
 
-# ══════════════════════════════════════════════════════════════════════════
-#  Configuración
-# ══════════════════════════════════════════════════════════════════════════
+
+#Configuración
+
 MASTER_HOST     = "127.0.0.1"
 MASTER_PORT     = 9000
 
@@ -50,19 +28,17 @@ HIDDEN3         = 32
 HIDDEN4         = 16
 LR              = 0.001
 
-RECV_TIMEOUT_MS = 120_000   # 2 min esperando al maestro
+RECV_TIMEOUT_MS = 120_000   
 
+# Modelo
 
-# ══════════════════════════════════════════════════════════════════════════
-#  Modelo  (idéntico al del maestro)
-# ══════════════════════════════════════════════════════════════════════════
 class MulticlassClassifier(nn.Module):
     def __init__(self):
         super().__init__()
-        self.fc1            = nn.Linear(INPUT_DIM, HIDDEN1)   # 14  → 128
-        self.fc2            = nn.Linear(HIDDEN1,   HIDDEN2)   # 128 → 64
-        self.fc3            = nn.Linear(HIDDEN2,   HIDDEN3)   # 64  → 32
-        self.fc4            = nn.Linear(HIDDEN3,   HIDDEN4)   # 32  → 16
+        self.fc1            = nn.Linear(INPUT_DIM, HIDDEN1)  
+        self.fc2            = nn.Linear(HIDDEN1,   HIDDEN2)   
+        self.fc3            = nn.Linear(HIDDEN2,   HIDDEN3)  
+        self.fc4            = nn.Linear(HIDDEN3,   HIDDEN4)   
         self.class_logits   = nn.Linear(HIDDEN4,   NUM_CLASSES)
         self.class_log_vars = nn.Linear(HIDDEN4,   NUM_CLASSES)
 
@@ -74,9 +50,9 @@ class MulticlassClassifier(nn.Module):
         return self.class_logits(x), self.class_log_vars(x)
 
 
-# ══════════════════════════════════════════════════════════════════════════
+
 #  Serialización de pesos
-# ══════════════════════════════════════════════════════════════════════════
+
 def weights_to_bytes(model: nn.Module) -> bytes:
     return np.concatenate([
         p.data.cpu().numpy().astype(np.float32).flatten()
@@ -95,16 +71,11 @@ def bytes_to_weights(model: nn.Module, data: bytes) -> None:
             ptr += n
 
 
-# ══════════════════════════════════════════════════════════════════════════
+
 #  Deserialización del dataset recibido por UDP
-#  Formato: [n:u32][f:u32][c:u32][X float32 flat][y float32 flat]
-# ══════════════════════════════════════════════════════════════════════════
+
 def deserialize_dataset(data: bytes):
-    """
-    Retorna (X, y) como numpy arrays float32.
-    X.shape = [n_samples, n_features]
-    y.shape = [n_samples, n_classes]
-    """
+
     hdr     = np.frombuffer(data[:12], dtype=np.uint32)
     n, f, c = int(hdr[0]), int(hdr[1]), int(hdr[2])
 
@@ -117,9 +88,9 @@ def deserialize_dataset(data: bytes):
     return X, y
 
 
-# ══════════════════════════════════════════════════════════════════════════
-#  Función principal
-# ══════════════════════════════════════════════════════════════════════════
+
+# Función principal
+
 def main():
     parser = argparse.ArgumentParser(description="Esclavo – Federated Learning")
     parser.add_argument("--node-id",    type=int, required=True,
@@ -134,22 +105,22 @@ def main():
 
     sep = "=" * 50
     print(sep)
-    print(f"  ESCLAVO {nid} – Aprendizaje Federado (batch=1)")
+    print(f"  Esclavo {nid} – Aprendizaje Federado (batch=1)")
     print(sep)
     print(f"  Puerto escucha : {port}  (node_id={nid})")
     print(f"  Maestro        : {MASTER_HOST}:{MASTER_PORT}")
     print()
 
-    # ── Nodo C++: log_fn = print → datagramas aparecen en terminal ────────
+
     node = comm_module.RDTNode(port, nid, print)
 
     model     = MulticlassClassifier()
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=LR)
 
-    # ══════════════════════════════════════════════════════════════════════
-    #  PASO INICIAL: recibir porción del dataset
-    # ══════════════════════════════════════════════════════════════════════
+
+    #recibir porción del dataset
+
     print(sep)
     print(f"  [Esclavo {nid}] Esperando dataset del maestro (TYPE=D)...")
     print(sep)
@@ -166,23 +137,23 @@ def main():
 
     X_local, y_local = deserialize_dataset(raw)
     n_momentos = len(X_local)
-    print(f"[Esclavo {nid}] ✓ Dataset recibido: {n_momentos} filas "
+    print(f"[Esclavo {nid}]  Dataset recibido: {n_momentos} filas "
           f"({X_local.shape[1]} features, {y_local.shape[1]} clases)")
 
     # Convertir a tensores
-    X_t = torch.tensor(X_local)   # [n_momentos, INPUT_DIM]
-    y_t = torch.tensor(y_local)   # [n_momentos, NUM_CLASSES]
+    X_t = torch.tensor(X_local)  
+    y_t = torch.tensor(y_local)   
 
-    # ══════════════════════════════════════════════════════════════════════
-    #  LOOP: un MOMENTO por fila, sincronizado con el maestro
-    # ══════════════════════════════════════════════════════════════════════
+    
+    # Loop: un momento por fila, sincronizado con el maestro
+    
     for momento in range(min(n_momentos, args.max_rounds)):
         print(f"\n{sep}")
         print(f"  [Esclavo {nid}] MOMENTO {momento + 1} / {n_momentos}")
         print(sep)
 
-        # ── PASO 2: Recibir matriz de pesos del maestro (TYPE = 'M') ──────
-        print(f"[Esclavo {nid}] ← Esperando pesos (TYPE=M) del maestro...")
+        #2: Recibir matriz de pesos del maestro (TYPE = 'M')
+        print(f"[Esclavo {nid}]  Esperando pesos (TYPE=M) del maestro...")
         result = node.recv_any(RECV_TIMEOUT_MS)
 
         if result is None:
@@ -194,19 +165,19 @@ def main():
             print(f"[Esclavo {nid}] ERROR: Esperaba TYPE='M', llegó '{tipo}'")
             break
 
-        # ── PASO 3: Cargar pesos en el modelo local ───────────────────────
+        #3: Cargar pesos en el modelo local
         bytes_to_weights(model, raw)
-        print(f"[Esclavo {nid}] ✓ Pesos del maestro cargados ({len(raw)} B)")
+        print(f"[Esclavo {nid}]  Pesos del maestro cargados ({len(raw)} B)")
 
-        # ── PASO 4: Entrenar con la FILA `momento` (batch = 1) ────────────
-        sx = X_t[momento].unsqueeze(0)   # shape [1, INPUT_DIM]
-        sy = y_t[momento].unsqueeze(0)   # shape [1, NUM_CLASSES]
+        #4: Entrenar con la fila `momento` (batch = 1)
+        sx = X_t[momento].unsqueeze(0)   
+        sy = y_t[momento].unsqueeze(0)   
 
         model.train()
         optimizer.zero_grad()
         logits, _ = model(sx)
         loss = criterion(logits, sy)
-        loss.backward()           # ← BACKPROPAGATION
+        loss.backward()          
         optimizer.step()
 
         pred  = logits.argmax(dim=1).item()
@@ -214,15 +185,15 @@ def main():
         print(f"[Esclavo {nid}] Entrenamiento fila {momento+1}: "
               f"loss={loss.item():.4f}  pred={pred}  label={label}")
 
-        # ── PASO 5: Enviar pesos actualizados al maestro (TYPE = 'm') ─────
+        #5: Enviar pesos actualizados al maestro (TYPE = 'm')
         updated = weights_to_bytes(model)
-        print(f"[Esclavo {nid}] → Enviando pesos (TYPE=m) al maestro "
+        print(f"[Esclavo {nid}]  Enviando pesos (TYPE=m) al maestro "
               f"({len(updated)} B)...")
         try:
             node.send_matrix_slave(MASTER_HOST, MASTER_PORT, 0, updated)
-            print(f"[Esclavo {nid}] ✓ Pesos enviados al maestro")
+            print(f"[Esclavo {nid}]  Pesos enviados al maestro")
         except RuntimeError as e:
-            print(f"[Esclavo {nid}] ⚠ Error enviando: {e}")
+            print(f"[Esclavo {nid}]  Error enviando: {e}")
 
     print(f"\n[Esclavo {nid}] Entrenamiento completado "
           f"({min(n_momentos, args.max_rounds)} momentos).")
