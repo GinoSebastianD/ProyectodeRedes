@@ -134,7 +134,7 @@ def load_and_partition(csv_path: str, n_slaves: int, test_ratio: float = 0.2):
 
 def main():
     parser = argparse.ArgumentParser(description="Maestro – Federated Learning")
-    parser.add_argument("--csv",    default="Dataset of Diabetes .csv")
+    parser.add_argument("--csv",    default="Dataset of Diabetes.csv")
     parser.add_argument("--slaves",    type=int, default=3, help="Número de esclavos")
     parser.add_argument("--no-slaves", action="store_true",
                         help="Modo solo maestro: usa todo el dataset sin esclavos ni red")
@@ -192,7 +192,7 @@ def main():
         print(sep)
         for i, ((Xs, ys), port) in enumerate(zip(slave_parts, s_ports), 1):
             data_bytes = serialize_dataset(Xs, ys)
-            print(f"\n[Maestro] → Enviando dataset a Esclavo {i} "
+            print(f"\n[Maestro]  Enviando dataset a Esclavo {i} "
                   f"({len(Xs)} filas, {len(data_bytes)} bytes)...")
             try:
                 node.send_data(SLAVE_HOST, port, i, data_bytes)
@@ -242,7 +242,7 @@ def main():
 
         # 3-4: Para cada esclavo: enviar pesos, recibir pesos
         for i, port in enumerate(s_ports, 1):
-            print(f"\n[Maestro] → Enviando pesos (TYPE=M) al Esclavo {i}...")
+            print(f"\n[Maestro]  Enviando pesos (TYPE=M) al Esclavo {i}...")
             try:
                 node.send_matrix(SLAVE_HOST, port, i, master_w)
                 print(f"[Maestro] Pesos enviados al Esclavo {i}")
@@ -250,7 +250,7 @@ def main():
                 print(f"[Maestro]  Error enviando a Esclavo {i}: {e}")
                 continue
 
-            print(f"[Maestro] ← Esperando pesos (TYPE=m) del Esclavo {i}...")
+            print(f"[Maestro] Esperando pesos (TYPE=m) del Esclavo {i}...")
             result = node.recv_any(RECV_TIMEOUT_MS)
             if result is None:
                 print(f"[Maestro]  Timeout Esclavo {i} — se omite")
@@ -268,7 +268,7 @@ def main():
 
         #6: Actualizar MLP con la media 
         bytes_to_weights(model, avg_bytes)
-        print(f"\n[Maestro] Media calculada con {n_contrib} matrices → "
+        print(f"\n[Maestro] Media calculada con {n_contrib} matrices  "
               f"modelo actualizado")
 
 
@@ -293,7 +293,7 @@ def main():
     print(f"  Loss final          : {losses[-1]:.4f}")
     print(f"  Loss promedio       : {sum(losses)/len(losses):.4f}")
     print(f"  Accuracy train      : {acc_train:.4f}  ({correct_train}/{len(y_true_all)})")
-    print(f"  Accuracy TEST SET   : {acc_test:.4f}  ({correct_test}/{len(y_true_test)})")
+    print(f"  Accuracy Test set   : {acc_test:.4f}  ({correct_test}/{len(y_true_test)})")
     print()
     print("Classification Report (Test set):")
     print(classification_report(y_true_test, y_pred_test, digits=3,
@@ -313,7 +313,7 @@ def main():
                                   display_labels=[f"C{i}"
                                                   for i in range(NUM_CLASSES)])
     disp.plot(cmap=plt.cm.Blues, ax=axes[1])
-    axes[1].set_title("Matriz de Confusión (TEST SET)")
+    axes[1].set_title("Matriz de Confusión (Test set)")
 
     plt.tight_layout()
     plt.savefig("master_resultados.png", dpi=120)
