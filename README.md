@@ -71,26 +71,35 @@ The protocol uses the following structure:
     <tr>
       <td><strong>CHECKSUM</strong></td>
       <td align="center">2 bytes</td>
-      <td>Integrity verification value used to detect whether the datagram was received correctly.</td>
+      <td>Integrity value used to verify whether the datagram was received correctly.</td>
     </tr>
     <tr>
       <td><strong>NODE_ID</strong></td>
       <td align="center">2 bytes</td>
-      <td>Logical identifier of the node involved in the communication. Example: <code>M0</code>, <code>S1</code>, <code>S2</code>, <code>S3</code>.</td>
+      <td>Numeric logical identifier of the node involved in the communication. Example: Master = 0, Slave 1 = 1.</td>
     </tr>
     <tr>
-      <td><strong>FLAG</strong></td>
+      <td><strong>FLAGS</strong></td>
       <td align="center">2 bytes</td>
-      <td>Indicates the position of the datagram in a fragmented message: start, body, or end.</td>
+      <td>Indicates the datagram position in a fragmented message: start, body, or end.</td>
     </tr>
     <tr>
       <td><strong>SEQ</strong></td>
       <td align="center">4 bytes</td>
-      <td>Datagram sequence number used to order packets and match them with <code>ACK</code> or <code>NACK</code> responses.</td>
+      <td>Datagram sequence number used for ordering and ACK/NACK matching.</td>
+    </tr>
+    <tr>
+      <td><strong>TYPE</strong></td>
+      <td align="center">1 byte</td>
+      <td>Identifies the message type: dataset, master weights, slave weights, ACK, or NACK.</td>
+    </tr>
+    <tr>
+      <td><strong>DATA_SIZE</strong></td>
+      <td align="center">4 bytes</td>
+      <td>Indicates the number of valid payload bytes stored in the data section.</td>
     </tr>
   </tbody>
 </table>
-
 ---
 
 ## Jacobson/Karels Algorithm
