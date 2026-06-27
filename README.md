@@ -19,17 +19,13 @@ The protocol uses the following structure:
 <table>
   <thead>
     <tr>
-      <th align="center">TYPE</th>
-      <th align="center">DATA_SIZE</th>
       <th align="center">DATA</th>
       <th align="center">PADDING</th>
     </tr>
   </thead>
   <tbody>
     <tr>
-      <td align="center"><strong>1 byte</strong></td>
-      <td align="center"><strong>4 bytes</strong></td>
-      <td align="center"><strong>Variable</strong></td>
+      <td align="center"><strong>Variable up to 485 bytes</strong></td>
       <td align="center"><strong>Variable</strong></td>
     </tr>
   </tbody>
@@ -42,8 +38,10 @@ The protocol uses the following structure:
     <tr>
       <th align="center">CHECKSUM</th>
       <th align="center">NODE_ID</th>
-      <th align="center">FLAG</th>
+      <th align="center">FLAGS</th>
       <th align="center">SEQ</th>
+      <th align="center">TYPE</th>
+      <th align="center">DATA_SIZE</th>
     </tr>
   </thead>
   <tbody>
@@ -52,9 +50,12 @@ The protocol uses the following structure:
       <td align="center"><strong>2 bytes</strong></td>
       <td align="center"><strong>2 bytes</strong></td>
       <td align="center"><strong>4 bytes</strong></td>
+      <td align="center"><strong>1 byte</strong></td>
+      <td align="center"><strong>4 bytes</strong></td>
     </tr>
   </tbody>
 </table>
+
 
 ### Header Fields
 
