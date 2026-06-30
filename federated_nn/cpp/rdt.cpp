@@ -26,16 +26,16 @@ void RDTNode::print_packet(const Packet& pkt,
 
     //Campos del header 
     std::snprintf(buf, sizeof(buf), "%04u",
-                  static_cast<unsigned>(pkt.hdr.checksum)); s += buf;  // checksum
+                  static_cast<unsigned>(pkt.hdr.checksum)); s += buf;  
     std::snprintf(buf, sizeof(buf), "%04u",
-                  static_cast<unsigned>(pkt.hdr.node_id));  s += buf;  // node_id
+                  static_cast<unsigned>(pkt.hdr.node_id));  s += buf;  
     std::snprintf(buf, sizeof(buf), "%04u",
-                  static_cast<unsigned>(pkt.hdr.flags));    s += buf;  // flags
+                  static_cast<unsigned>(pkt.hdr.flags));    s += buf;  
     std::snprintf(buf, sizeof(buf), "%08u",
-                  static_cast<unsigned>(pkt.hdr.seq));      s += buf;  // seq
-    s += static_cast<char>(pkt.hdr.type);                              // type
+                  static_cast<unsigned>(pkt.hdr.seq));      s += buf;  
+    s += static_cast<char>(pkt.hdr.type);                              
     std::snprintf(buf, sizeof(buf), "%08u",
-                  static_cast<unsigned>(pkt.hdr.data_size)); s += buf; // data_size
+                  static_cast<unsigned>(pkt.hdr.data_size)); s += buf; 
 
     //Bytes de datos
     for (int i = 0; i < MAX_DATA; ++i) {
@@ -73,24 +73,24 @@ void RDTNode::send_response(uint8_t resp_type, uint32_t seq,
     ack.hdr.node_id   = my_id_;
     ack.hdr.flags     = FLAG_END;
     ack.hdr.seq       = seq;
-    ack.hdr.type      = resp_type;  // 'a' o 'N'
+    ack.hdr.type      = resp_type;  
     ack.hdr.data_size = 0;
     seal_packet(ack);
 
     sock_.send_to(&ack, PACKET_SIZE, ip, port);
-    print_packet(ack, "WRITE");  // ← display del datagrama enviado
+    print_packet(ack, "WRITE");  
 }
 
-//Stop-and-wait: enviar UN paquete y esperar ACK
+//Stop-and-wait
 void RDTNode::send_one(const Packet& pkt,
                        const std::string& dest_ip, int dest_port) {
     for (int attempt = 1; attempt <= MAX_RETRIES; ++attempt) {
-        //Enviar datagrama 
+        
         print_packet(pkt, "WRITE");          
         //sock_.send_to(&pkt, PACKET_SIZE, dest_ip, dest_port); normal
 
         if (pkt.hdr.seq == 2 && attempt == 1 && !nack_test_done_) {
-            nack_test_done_ = true;     // ← marca que ya se usó, no se repite
+            nack_test_done_ = true;     //marca que ya se usó, no se repite
             Packet corrupto = pkt;
             corrupto.data[0] ^= 0xFF;
             sock_.send_to(&corrupto, PACKET_SIZE, dest_ip, dest_port);
@@ -119,7 +119,7 @@ void RDTNode::send_one(const Packet& pkt,
             continue;
         }
 
-        // Ignorar paquetes de datos que puedan llegar en esta ventana
+        
         if (resp.hdr.type != TYPE_ACK && resp.hdr.type != TYPE_NACK) {
             log("[RDT:" + std::to_string(my_id_) +
                 "] Paquete no-ACK ignorado, reintento seq=" +
@@ -133,7 +133,7 @@ void RDTNode::send_one(const Packet& pkt,
                 std::to_string(resp.hdr.seq) + " — retransmitiendo"); //normal */
             log_fn_("");
             log_fn_("╔══════════════════════════════════════════╗");
-            log_fn_("║  ⚠  NACK RECIBIDO — DATAGRAMA CORRUPTO  ║");
+            log_fn_("║      NACK RECIBIDO — DATAGRAMA CORRUPTO  ║");
             log_fn_("║     seq=" + std::to_string(resp.hdr.seq) +
                     "  intento=" + std::to_string(attempt) +
                     "                    ║");
@@ -159,7 +159,7 @@ void RDTNode::send_one(const Packet& pkt,
 }
 
 
-//Enviar mensaje completo (con fragmentación)
+
 
 int RDTNode::send(const std::string& dest_ip, int dest_port,
                   uint16_t dest_id, uint8_t type,
@@ -207,7 +207,7 @@ int RDTNode::send(const std::string& dest_ip, int dest_port,
 }
 
 
-//Recibir mensaje completo (con reensamblaje)
+//Recibir mensaje completo
 
 RDTNode::Message RDTNode::recv(int timeout_ms) {
     std::map<uint32_t, std::vector<uint8_t>> fragments;
@@ -245,14 +245,13 @@ RDTNode::Message RDTNode::recv(int timeout_ms) {
 
         //Verificar checksum
         if (!verify_checksum(pkt)) {
-            // ── 1º: responder de inmediato (dentro de los 500ms que el
-            //        emisor está esperando) — evita que retransmita a ciegas
+
             send_response(TYPE_NACK, pkt.hdr.seq, src.ip, src.port);
 
-            // ── 2º: pausa SOLO visual, ya no bloquea el protocolo ───────
+
             log_fn_("");
             log_fn_("╔══════════════════════════════════════════╗");
-            log_fn_("║  ✗  CHECKSUM INVÁLIDO — NACK ENVIADO     ║");
+            log_fn_("║    CHECKSUM INVÁLIDO — NACK ENVIADO     ║");
             log_fn_("║     seq=" + std::to_string(pkt.hdr.seq) +
                     "                                   ║");
             log_fn_("╚══════════════════════════════════════════╝");
