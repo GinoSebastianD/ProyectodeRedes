@@ -146,7 +146,7 @@ def load_and_partition(csv_path: str, n_slaves: int, test_ratio: float = 0.2):
 #  Función principal
 
 def main():
-    parser = argparse.ArgumentParser(description="Maestro – Federated Learning")
+    parser = argparse.ArgumentParser(description=" – Federated Learning")
     parser.add_argument("--csv",    default="Dataset of Diabetes.csv")
     parser.add_argument("--slaves",    type=int, default=3, help="Número de esclavos")
     parser.add_argument("--no-slaves", action="store_true",
