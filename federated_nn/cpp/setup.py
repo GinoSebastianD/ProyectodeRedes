@@ -1,13 +1,3 @@
-"""
-Build script para comm_module (RDT sobre UDP).
-
-Uso:
-    pip install pybind11
-    python setup.py build_ext --inplace
-
-Genera: comm_module.cpython-<ver>-linux-gnu.so (o .pyd en Windows)
-El .so se copia automáticamente junto a master.py y slave.py.
-"""
 
 from setuptools import setup, Extension
 import pybind11
@@ -28,7 +18,7 @@ ext = Extension(
         "-O2",
         "-Wall",
         "-Wextra",
-        "-fvisibility=hidden",   # requerido por pybind11
+        "-fvisibility=hidden",   
     ],
 )
 
