@@ -301,7 +301,7 @@ def main():
     acc_train     = correct_train / max(len(y_true_all), 1)
 
     print("\n" + "=" * 50)
-    print("  RESULTADOS FINALES DEL MAESTRO")
+    print("  Resultados finales del maestro")
     print("=" * 50)
     print(f"  Momentos procesados : {n_momentos}")
     print(f"  Loss final          : {losses[-1]:.4f}")
